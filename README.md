@@ -8,6 +8,7 @@ This repository implements a method for calculating token importance in generati
 ## **Files**
 - **`requirements.txt`**: Lists necessary libraries.
 - **`Input_Tokens_Importance.ipynb`**: Main code file.
+- **`iterations_data.json`**: Example data for a given input.
 
 ---
 
@@ -23,40 +24,32 @@ Provides a visualization of token inportance for the given input and of how toke
 
 ---
 
-##**ReAgent Methodology**
+## **ReAgent Methodology**
 The **ReAGent methodology** computes the input importance distribution for each predicted token in a way that is:
 
 1. **Model-agnostic**: It does not rely on an attention mechanism, making it applicable to a wide range of models.
 2. **Black-box compatible**: It requires no access to model weights or architecture details, relying solely on forward passes without gradients.
 
-Inspired by occlusion-based feature attribution (FA) methods, ReAGent assumes that replacing more important tokens in the input context (\(x_1, \dots, x_{t-1}\)) results in larger reductions in the predictive likelihood of the target token (\(x_t\)). The method iteratively replaces context tokens to compute their importance scores.
+Inspired by occlusion-based feature attribution (FA) methods, ReAGent assumes that replacing more important tokens in the input context $x_1, \dots, x_{t-1}$ results in larger reductions in the predictive likelihood of the target token $x_t$. The method iteratively replaces context tokens to compute their importance scores.
 
-#### Algorithm Overview
+### Algorithm Overview
 
-The process, detailed in Algorithm 1, consists of the following steps:
+The process consists of the following steps:
 
 1. **Initialization**:
-   - Randomly initialize importance scores (\(S_t = \{s_1, \dots, s_{t-1}\}\)) for all context tokens.
+   - Randomly initialize importance scores $S_{t+1} = \{s_1, \dots, s_{t}\}$ for all context tokens.
 
 2. **Iterative Update**:
    - The algorithm updates the scores through the following steps:
-     - **Step 3**: Randomly select a subset of tokens (\(R \subset x_1, \dots, x_{t-1}\)) for replacement. Typically, \(r = 30\%\) of the sequence is replaced.
-     - **Step 4**: Replace the selected tokens (\(R\)) with predictions from a secondary language model (e.g., RoBERTa). This creates a new sequence (\(\hat{x}_1, \dots, \hat{x}_{t-1}\)).
-     - **Steps 5 & 6**: Compute the change in predictive probability (\(\Delta p\)) of the target token (\(x_t\)), and update the importance scores (\(S_t\)) accordingly:
-       \[
-       \Delta p_t = p_t^{(o)} - p_t^{(r)}
-       \]
-       where \(p_t^{(o)}\) is the predictive probability of \(x_t\) for the original sequence, and \(p_t^{(r)}\) is the probability for the replaced sequence. Scores are updated using:
-       \[
-       S_t = \text{softmax}\left(S_{t-1} + \log\left(\frac{\Delta S_t + 1}{2}\right)\right)
-       \]
+     - **Step 3**: Randomly select a subset of tokens $R \subset x_1, \dots, x_{t}$ for replacement. Typically, $r = 30$ % of the sequence is replaced.
+     - **Step 4**: Replace the selected tokens $R$ with predictions from a secondary language model (e.g., RoBERTa). This creates a new sequence $C(x+1) =$ $\hat{x}_1$, ..., $\hat{x}_t$.
+     - **Steps 5 & 6**: Compute the change in predictive probability $\Delta p$ of the target token $x_t$, and update the importance scores $S_t$ accordingly:
+       $$\Delta p_{t+1} = p_{t+1}^{(o)} - p_{t+1}^{(r)}$$
+       where $p_t^{(o)}$ is the predictive probability of $x_t$ for the original sequence, and $p_t^{(r)}$ is the probability for the replaced sequence. Scores are updated using:
+       $$S_{t+1}^{(l)} = \text{softmax}\left(S_{t}^{(l)} + \log\left(\frac{\Delta S_{t+1} + 1}{2}\right)\right)$$
 
 3. **Stopping Condition**:
-   - The process stops when the following condition is met: if the top 70% least important tokens are replaced, and the model's top-3 predictions include the target token (\(x_t\)).
-
----
-
-This algorithm is robust for black-box models, as it does not require backward passes, making it suitable for scenarios where access to model gradients or internal parameters is restricted.
+   - The process stops when the following condition is met: if the top 70% least important tokens are replaced, and the model's top-3 predictions include the target token $x_t$.
 
 ---
 
